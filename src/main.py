@@ -65,6 +65,7 @@ def main():
             listen="0.0.0.0",
             port=config.get("PORT"),
             webhook_url=config.get("WEBHOOK_URL"),
+            secret_token=config.get("WEBHOOK_SECRET"),
         )
     else:
         application.run_polling()
