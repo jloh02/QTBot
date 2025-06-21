@@ -2,7 +2,7 @@ import logging
 import datetime
 import constants
 import storage
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Bot, Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -22,6 +22,14 @@ logger = logging.getLogger("main")
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("apscheduler.scheduler").setLevel(logging.WARNING)
 logging.getLogger("apscheduler.executors.default").setLevel(logging.WARNING)
+
+
+TBOT = Bot(config.get("TELEGRAM_BOT_API_KEY"))
+COMMANDS_DICT = {
+    "register": "Add yourself to the QT group",
+    "qtdone": "Finish as done for today",
+}
+TBOT.set_my_commands(COMMANDS_DICT.items())
 
 
 def main():
@@ -66,7 +74,7 @@ async def register(update: Update, context: CallbackContext):
     buttons = [
         [InlineKeyboardButton(text=v, callback_data=k)]
         for k, v in constants.FREQUENCY_OPTIONS.items()
-    ]
+    ] + [[InlineKeyboardButton(text="I want out!", callback_data="cancel")]]
     markup = InlineKeyboardMarkup(buttons)
     await update.message.reply_text(
         "How often would you like to do your QT?", reply_markup=markup
@@ -78,10 +86,16 @@ async def select_frequency(update: Update, context: CallbackContext):
     query = update.callback_query
     await query.answer()
     freq = query.data
+
+    if freq == "cancel":
+        storage.remove_user(query.message.chat_id, query.from_user.username)
+        await query.edit_message_text("Registration cancelled. Byeee!👋")
+        return ConversationHandler.END
+
     user = query.from_user.username
     storage.register_user(query.message.chat_id, user, freq)
     await query.edit_message_text(
-        f"@{user} registered with frequency: {constants.FREQUENCY_OPTIONS[freq]}"
+        f"@{user} committed to do QT {constants.FREQUENCY_OPTIONS[freq]}! 🎉"
     )
     return ConversationHandler.END
 
@@ -89,7 +103,11 @@ async def select_frequency(update: Update, context: CallbackContext):
 async def qtdone(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
     user = update.effective_user.username
-    storage.mark_done(chat_id, user)
+    deadline = datetime.datetime.fromisoformat(
+        storage.get_user_next_deadline(chat_id, user)
+    )
+    now = datetime.datetime.now()
+    storage.mark_done(chat_id, user, deadline < now)
     streak = storage.get_user_streak(chat_id, user)
     await update.message.reply_text(f"{streak}🔥")
 
@@ -112,14 +130,14 @@ async def remind_incomplete(context: CallbackContext, group: str | None = None):
                 continue
             time_left = deadline - now
             # Ping if within 6h of deadline and still not today
-            if time_left.total_seconds() <= 6 * 3600:
+            if time_left.total_seconds() <= constants.REMINDER_DEADLINE_IN_HOURS * 3600:
                 incomplete.append([int(time_left.total_seconds() // 3600), user])
         incomplete.sort(key=lambda x: x[0])
 
         if incomplete:
             await context.bot.send_message(
                 chat_id=int(chat_id),
-                text="⏰ Reminder! The following users have QT due soon:\n"
+                text="⏰🙏 Reminder ⛪️✝️\n\n"
                 + "\n".join(
                     [
                         f"@{u} | {abs(t)} hours {'overdue' if t < 0 else 'left'}"

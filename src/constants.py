@@ -9,9 +9,5 @@ class ConvState(str, Enum):
     SelectFrequency = "SelectFrequency"
 
 
-WELCOME_MESSAGE = (
-    "Welcome to the QTDone Bot!\n\n"
-    "Use /register to set up your group task reminder.\n"
-    "Use /qtdone to log your task completion today.\n"
-    "Stay consistent!"
-)
+REMINDER_DEADLINE_IN_HOURS = 6
+TIME_DEADLINE_LEEWAY_IN_HOURS = 12

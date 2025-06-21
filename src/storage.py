@@ -42,16 +42,29 @@ def register_user(chat_id: int, user: str, frequency: str):
     write_group_data()
 
 
-def mark_done(chat_id: int, user: str):
+def mark_done(chat_id: int, user: str, is_past_deadline: bool):
     str_chat = str(chat_id)
     group = group_data_cache.get(str_chat, None)
     if group is None:
         return
-    group["streaks"][user] = group["streaks"].get(user, 0) + 1
     freq = group["frequencies"].get(user)
     if freq:
+        group["streaks"][user] = (
+            1 if is_past_deadline else group["streaks"].get(user, 0) + 1
+        )
         group["next_deadline"][user] = utils.compute_next_deadline(freq).isoformat()
-        write_group_data()
+    write_group_data()
+
+
+def remove_user(chat_id: int, user: str):
+    str_chat = str(chat_id)
+    group = group_data_cache.get(str_chat, None)
+    if group is None:
+        return
+    group["frequencies"].pop(user, None)
+    group["next_deadline"].pop(user, None)
+    group["streaks"].pop(user, None)
+    write_group_data()
 
 
 def get_user_frequency(chat_id: int, user: str) -> str | None:
