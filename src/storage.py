@@ -1,6 +1,6 @@
 import os
 import json
-import datetime
+import utils
 from config import config
 
 group_data_cache = {}
@@ -28,30 +28,43 @@ def write_group_data():
         json.dump(group_data_cache, f)
 
 
-def register_group(chat_id: int, frequency: str):
-    group_data_cache[str(chat_id)] = {
-        "frequency": frequency,
-        "last_completed": {},
-        "streaks": {},
-    }
+def register_user(chat_id: int, user: str, frequency: str):
+    str_chat = str(chat_id)
+    if str_chat not in group_data_cache:
+        group_data_cache[str_chat] = {
+            "frequencies": {},
+            "next_deadline": {},
+            "streaks": {},
+        }
+    group = group_data_cache[str_chat]
+    group["frequencies"][user] = frequency
+    group["next_deadline"][user] = utils.compute_next_deadline(frequency).isoformat()
     write_group_data()
 
 
 def mark_done(chat_id: int, user: str):
-    group = group_data_cache.get(str(chat_id), None)
+    str_chat = str(chat_id)
+    group = group_data_cache.get(str_chat, None)
     if group is None:
         return
-    today = datetime.date.today().isoformat()
-    last_done = group["last_completed"].get(user)
-    if last_done != today:
-        group["last_completed"][user] = today
-        group["streaks"][user] = group["streaks"].get(user, 0) + 1
+    group["streaks"][user] = group["streaks"].get(user, 0) + 1
+    freq = group["frequencies"].get(user)
+    if freq:
+        group["next_deadline"][user] = utils.compute_next_deadline(freq).isoformat()
         write_group_data()
+
+
+def get_user_frequency(chat_id: int, user: str) -> str | None:
+    return group_data_cache.get(str(chat_id), {}).get("frequencies", {}).get(user)
+
+
+def get_user_next_deadline(chat_id: int, user: str) -> str | None:
+    return group_data_cache.get(str(chat_id), {}).get("next_deadline", {}).get(user)
 
 
 def get_group_summary(chat_id: int) -> tuple[dict, dict]:
     group = group_data_cache.get(str(chat_id), {})
-    return group.get("streaks", {}), group.get("last_completed", {})
+    return group.get("streaks", {}), group.get("next_deadline", {})
 
 
 def get_all_groups():

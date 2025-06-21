@@ -40,8 +40,13 @@ def main():
     application.add_handler(conv_handler)
     application.add_handler(CommandHandler("qtdone", qtdone))
     application.add_handler(CommandHandler("remind", remind))
-    application.job_queue.run_repeating(
-        remind_incomplete, interval=datetime.timedelta(minutes=30)
+
+    # Times in GMT+0
+    application.job_queue.run_daily(
+        remind_incomplete, time=datetime.time(hour=21 - 8, minute=0)
+    )
+    application.job_queue.run_daily(
+        remind_incomplete, time=datetime.time(hour=10 - 8, minute=0)
     )
 
     if config.get("PRODUCTION"):
@@ -60,7 +65,9 @@ async def register(update: Update, context: CallbackContext):
         for k, v in constants.FREQUENCY_OPTIONS.items()
     ]
     markup = InlineKeyboardMarkup(buttons)
-    await update.message.reply_text("Choose your task frequency:", reply_markup=markup)
+    await update.message.reply_text(
+        "How often would you like to do your QT?", reply_markup=markup
+    )
     return constants.ConvState.SelectFrequency
 
 
@@ -68,9 +75,10 @@ async def select_frequency(update: Update, context: CallbackContext):
     query = update.callback_query
     await query.answer()
     freq = query.data
-    storage.register_group(query.message.chat_id, freq)
+    user = query.from_user.username
+    storage.register_user(query.message.chat_id, user, freq)
     await query.edit_message_text(
-        f"Frequency set to: {constants.FREQUENCY_OPTIONS[freq]}"
+        f"@{user} registered with frequency: {constants.FREQUENCY_OPTIONS[freq]}"
     )
     return ConversationHandler.END
 
@@ -79,9 +87,14 @@ async def qtdone(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
     user = update.effective_user.username
     storage.mark_done(chat_id, user)
-    streaks, _ = storage.get_group_summary(chat_id)
-    response = "\n".join([f"@{k}: {v} days" for k, v in streaks.items()])
-    await update.message.reply_text(f"Streaks:\n{response}")
+    streaks, next_deadline = storage.get_group_summary(chat_id)
+    response = "\n".join(
+        [
+            f"@{k}: {v} days streak (next deadline: {next_deadline.get(k, '?')})"
+            for k, v in streaks.items()
+        ]
+    )
+    await update.message.reply_text(f"Updated streaks:\n{response}")
 
 
 async def remind(update: Update, context: CallbackContext):
@@ -90,26 +103,28 @@ async def remind(update: Update, context: CallbackContext):
 
 async def remind_incomplete(context: CallbackContext):
     now = datetime.datetime.now()
+
     for chat_id, data in storage.get_all_groups():
-        freq = data.get("frequency")
-        if not freq:
-            continue
-        deadline = datetime.datetime.combine(
-            datetime.date.today(), datetime.time(23, 59)
-        )
-        if (deadline - now).total_seconds() > 6 * 3600:  # 6 hours
-            continue
-        last_completed = data.get("last_completed", {})
-        all_users = data["streaks"].keys()
-        incomplete = [
-            u
-            for u in all_users
-            if last_completed.get(u) != datetime.date.today().isoformat()
-        ]
+        deadlines = data.get("next_deadline", {})
+        incomplete = []
+
+        for user, deadline_str in deadlines.items():
+            try:
+                deadline = datetime.datetime.fromisoformat(deadline_str)
+            except Exception:
+                continue
+            # Ping if within 6h of deadline and still not today
+            if (deadline - now).total_seconds() <= 6 * 3600:
+                time_left = (
+                    datetime.datetime.combine(deadline, datetime.time(0, 0)) - now
+                )
+                if time_left.total_seconds() <= 6 * 3600:
+                    incomplete.append([user, deadline.strftime("%d-%m-%Y %H:%M")])
+
         if incomplete:
             await context.bot.send_message(
                 chat_id=int(chat_id),
-                text="Reminder: The following users haven't marked today's task as done:\n"
+                text="⏰ Reminder! The following users have QT due soon:\n"
                 + "\n".join([f"@{u}" for u in incomplete]),
             )
 
