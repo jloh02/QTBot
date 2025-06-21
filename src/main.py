@@ -90,13 +90,13 @@ async def select_frequency(update: Update, context: CallbackContext):
 
     if freq == "cancel":
         storage.remove_user(query.message.chat_id, query.from_user.username)
-        await query.edit_message_text("Registration cancelled. Byeee!👋")
+        await query.edit_message_text(f"Byeee @{query.from_user.username}!👋")
         return ConversationHandler.END
 
     user = query.from_user.username
     storage.register_user(query.message.chat_id, user, freq)
     await query.edit_message_text(
-        f"@{user} committed to do QT {constants.FREQUENCY_OPTIONS[freq]}! 🎉"
+        f"@{user} committed to do QT {constants.FREQUENCY_OPTIONS[freq].lower()}! 🎉"
     )
     return ConversationHandler.END
 
@@ -104,9 +104,15 @@ async def select_frequency(update: Update, context: CallbackContext):
 async def qtdone(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
     user = update.effective_user.username
-    deadline = datetime.datetime.fromisoformat(
-        storage.get_user_next_deadline(chat_id, user)
-    )
+    deadline_str = storage.get_user_next_deadline(chat_id, user)
+
+    if not deadline_str:
+        await update.message.reply_text(
+            "You are not registered! Please use /register to join the QT group."
+        )
+        return
+
+    deadline = datetime.datetime.fromisoformat(deadline_str)
     now = datetime.datetime.now()
     storage.mark_done(chat_id, user, deadline < now)
     streak = storage.get_user_streak(chat_id, user)
