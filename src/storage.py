@@ -93,3 +93,20 @@ def get_group_streaks(chat_id: int) -> dict[str, int]:
 
 def get_all_groups():
     return group_data_cache.keys()
+
+
+def set_last_reminder(chat_id: int, timestamp: int):
+    str_chat = str(chat_id)
+    if str_chat not in group_data_cache:
+        group_data_cache[str_chat] = {}
+    group = group_data_cache[str_chat]
+    group["last_reminder"] = timestamp
+    write_group_data()
+
+
+def get_last_reminder(chat_id: int) -> int | None:
+    str_chat = str(chat_id)
+    group = group_data_cache.get(str_chat, None)
+    if group is None:
+        return None
+    return group.get("last_reminder", 0)

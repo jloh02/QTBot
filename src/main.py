@@ -111,6 +111,8 @@ async def qtdone(update: Update, context: CallbackContext):
     streak = storage.get_user_streak(chat_id, user)
     await update.message.reply_text(f"{streak}🔥")
 
+    await remind(update, context)  # Send reminder immediately after marking done
+
 
 async def remind(update: Update, context: CallbackContext):
     await remind_incomplete(context, update.effective_chat.id)
@@ -122,6 +124,14 @@ async def remind_incomplete(context: CallbackContext, group: str | None = None):
     for chat_id in groups:
         deadlines = storage.get_group_next_deadline(chat_id)
         incomplete = []
+
+        last_remind = storage.get_last_reminder(chat_id)
+        if (
+            last_remind
+            and now.timestamp() - last_remind
+            < constants.REMINDER_DEADLINE_IN_HOURS * 3600
+        ):
+            continue
 
         for user, deadline_str in deadlines.items():
             try:
@@ -145,6 +155,7 @@ async def remind_incomplete(context: CallbackContext, group: str | None = None):
                     ]
                 ),
             )
+            storage.set_last_reminder(chat_id, int(now.timestamp()))
 
 
 if __name__ == "__main__":
