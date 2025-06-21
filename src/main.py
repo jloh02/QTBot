@@ -113,19 +113,22 @@ async def remind_incomplete(context: CallbackContext):
                 deadline = datetime.datetime.fromisoformat(deadline_str)
             except Exception:
                 continue
+            time_left = deadline - now
             # Ping if within 6h of deadline and still not today
-            if (deadline - now).total_seconds() <= 6 * 3600:
-                time_left = (
-                    datetime.datetime.combine(deadline, datetime.time(0, 0)) - now
-                )
-                if time_left.total_seconds() <= 6 * 3600:
-                    incomplete.append([user, deadline.strftime("%d-%m-%Y %H:%M")])
+            if time_left.total_seconds() <= 6 * 3600:
+                incomplete.append([int(time_left.total_seconds() // 3600), user])
+        incomplete.sort(key=lambda x: x[0])
 
         if incomplete:
             await context.bot.send_message(
                 chat_id=int(chat_id),
                 text="⏰ Reminder! The following users have QT due soon:\n"
-                + "\n".join([f"@{u}" for u in incomplete]),
+                + "\n".join(
+                    [
+                        f"@{u} | {abs(t)} hours {'overdue' if t < 0 else 'left'}"
+                        for [t, u] in incomplete
+                    ]
+                ),
             )
 
 
