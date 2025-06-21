@@ -68,7 +68,7 @@ def remove_user(chat_id: int, user: str):
 
 
 def get_user_frequency(chat_id: int, user: str) -> str | None:
-    return group_data_cache.get(str(chat_id), {}).get("frequencies", {}).get(user)
+    return get_group_frequencies(chat_id).get(user)
 
 
 def get_user_next_deadline(chat_id: int, user: str) -> str | None:
@@ -76,11 +76,19 @@ def get_user_next_deadline(chat_id: int, user: str) -> str | None:
 
 
 def get_user_streak(chat_id: int, user: str) -> int | None:
-    return group_data_cache.get(str(chat_id), {}).get("streaks", {}).get(user)
+    return get_group_streaks(chat_id).get(user)
+
+
+def get_group_frequencies(chat_id: int) -> dict[str, str]:
+    return group_data_cache.get(str(chat_id), {}).get("frequencies", {})
 
 
 def get_group_next_deadline(chat_id: int) -> dict[str, str]:
     return group_data_cache.get(str(chat_id), {}).get("next_deadline", {})
+
+
+def get_group_streaks(chat_id: int) -> dict[str, int]:
+    return group_data_cache.get(str(chat_id), {}).get("streaks", {})
 
 
 def get_all_groups():
