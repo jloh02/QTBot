@@ -59,13 +59,16 @@ def get_user_frequency(chat_id: int, user: str) -> str | None:
 
 
 def get_user_next_deadline(chat_id: int, user: str) -> str | None:
-    return group_data_cache.get(str(chat_id), {}).get("next_deadline", {}).get(user)
+    return get_group_next_deadline(chat_id).get(user)
 
 
-def get_group_summary(chat_id: int) -> tuple[dict, dict]:
-    group = group_data_cache.get(str(chat_id), {})
-    return group.get("streaks", {}), group.get("next_deadline", {})
+def get_user_streak(chat_id: int, user: str) -> int | None:
+    return group_data_cache.get(str(chat_id), {}).get("streaks", {}).get(user)
+
+
+def get_group_next_deadline(chat_id: int) -> dict[str, str]:
+    return group_data_cache.get(str(chat_id), {}).get("next_deadline", {})
 
 
 def get_all_groups():
-    return group_data_cache.items()
+    return group_data_cache.keys()

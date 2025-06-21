@@ -87,25 +87,19 @@ async def qtdone(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
     user = update.effective_user.username
     storage.mark_done(chat_id, user)
-    streaks, next_deadline = storage.get_group_summary(chat_id)
-    response = "\n".join(
-        [
-            f"@{k}: {v} days streak (next deadline: {next_deadline.get(k, '?')})"
-            for k, v in streaks.items()
-        ]
-    )
-    await update.message.reply_text(f"Updated streaks:\n{response}")
+    streak = storage.get_user_streak(chat_id, user)
+    await update.message.reply_text(f"{streak}🔥")
 
 
 async def remind(update: Update, context: CallbackContext):
-    await remind_incomplete(context)
+    await remind_incomplete(context, update.effective_chat.id)
 
 
-async def remind_incomplete(context: CallbackContext):
+async def remind_incomplete(context: CallbackContext, group: str | None = None):
+    groups = storage.get_all_groups() if group is None else [group]
     now = datetime.datetime.now()
-
-    for chat_id, data in storage.get_all_groups():
-        deadlines = data.get("next_deadline", {})
+    for chat_id in groups:
+        deadlines = storage.get_group_next_deadline(chat_id)
         incomplete = []
 
         for user, deadline_str in deadlines.items():
