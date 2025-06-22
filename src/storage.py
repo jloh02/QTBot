@@ -35,6 +35,7 @@ def register_user(chat_id: int, user: str, frequency: str):
             "frequencies": {},
             "next_deadline": {},
             "streaks": {},
+            "last_completed": {},
         }
     group = group_data_cache[str_chat]
     group["frequencies"][user] = frequency
