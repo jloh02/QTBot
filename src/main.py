@@ -114,7 +114,7 @@ async def qtdone(update: Update, context: CallbackContext):
 
     now = datetime.datetime.now()
 
-    last_completed_str = storage.get_last_completed(chat_id, user)
+    last_completed_str = storage.get_user_last_completed(chat_id, user)
     if last_completed_str:
         last_completed = datetime.datetime.fromisoformat(last_completed_str)
         time_from_last = now - last_completed
