@@ -27,7 +27,7 @@ logging.getLogger("apscheduler.executors.default").setLevel(logging.WARNING)
 TBOT = Bot(config.get("TELEGRAM_BOT_API_KEY"))
 COMMANDS_DICT = {
     "register": "Add yourself to the QT group",
-    "qtdone": "Finish as done for today",
+    "qtdone": "Finish QT today! Share something about it too!",
 }
 TBOT.set_my_commands(COMMANDS_DICT.items())
 
