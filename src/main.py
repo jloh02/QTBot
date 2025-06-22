@@ -112,9 +112,20 @@ async def qtdone(update: Update, context: CallbackContext):
         )
         return
 
-    deadline = datetime.datetime.fromisoformat(deadline_str)
     now = datetime.datetime.now()
-    storage.mark_done(chat_id, user, deadline < now)
+
+    last_completed_str = datetime.datetime.fromisoformat(
+        storage.get_user_last_completed(chat_id, user)
+    )
+    time_from_last = now - datetime.datetime.fromisoformat(last_completed_str)
+    if time_from_last.total_seconds() < constants.MIN_TIME_BETWEEN_QT_IN_HOURS * 3600:
+        await update.message.reply_text(
+            f"QT already done within the last {constants.MIN_TIME_BETWEEN_QT_IN_HOURS} hours! Stop being so ups 🔥🔥🔥"
+        )
+        return
+
+    deadline = datetime.datetime.fromisoformat(deadline_str)
+    storage.mark_done(chat_id, user, deadline < now, now.isoformat())
     streak = storage.get_user_streak(chat_id, user)
     await update.message.reply_text(f"{streak}🔥")
 

@@ -42,7 +42,7 @@ def register_user(chat_id: int, user: str, frequency: str):
     write_group_data()
 
 
-def mark_done(chat_id: int, user: str, is_past_deadline: bool):
+def mark_done(chat_id: int, user: str, is_past_deadline: bool, completed_at: str):
     str_chat = str(chat_id)
     group = group_data_cache.get(str_chat, None)
     if group is None:
@@ -53,6 +53,7 @@ def mark_done(chat_id: int, user: str, is_past_deadline: bool):
             1 if is_past_deadline else group["streaks"].get(user, 0) + 1
         )
         group["next_deadline"][user] = utils.compute_next_deadline(freq).isoformat()
+        group["last_completed"][user] = completed_at
     write_group_data()
 
 
@@ -75,6 +76,10 @@ def get_user_next_deadline(chat_id: int, user: str) -> str | None:
     return get_group_next_deadline(chat_id).get(user)
 
 
+def get_user_last_completed(chat_id: int, user: str) -> str | None:
+    return get_group_last_completed(chat_id).get(user)
+
+
 def get_user_streak(chat_id: int, user: str) -> int | None:
     return get_group_streaks(chat_id).get(user)
 
@@ -85,6 +90,10 @@ def get_group_frequencies(chat_id: int) -> dict[str, str]:
 
 def get_group_next_deadline(chat_id: int) -> dict[str, str]:
     return group_data_cache.get(str(chat_id), {}).get("next_deadline", {})
+
+
+def get_group_last_completed(chat_id: int) -> dict[str, str]:
+    return group_data_cache.get(str(chat_id), {}).get("last_completed", {})
 
 
 def get_group_streaks(chat_id: int) -> dict[str, int]:
